@@ -1,39 +1,94 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+// app/_layout.tsx
+import { useEffect } from "react";
+import { Drawer } from "expo-router/drawer";
+import { useAuth } from "@/store/useAuth";
+import { useRouter, Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import DrawerContent from "@/components/DrawerContent";
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+export default function Layout() {
+  const { user } = useAuth();
+  const router = useRouter();
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
+  // Redirigir al login si no hay usuario
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    if (!user) {
+      const timeout = setTimeout(() => {
+        router.replace("/login");
+      }, 100);
+      return () => clearTimeout(timeout);
     }
-  }, [loaded]);
+  }, [user]);
 
-  if (!loaded) {
-    return null;
+  // Para páginas de autenticación (login/register), usar Stack Navigator
+  if (!user) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="login/index" />
+            <Stack.Screen name="register/index" />
+            {/* Ocultar index de la navegación Stack cuando no hay usuario */}
+            <Stack.Screen name="index" options={{ href: null }} />
+          </Stack>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    );
   }
 
+  // Para pantallas autenticadas, usar Drawer Navigator
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <StatusBar style="light" backgroundColor="#1E3A8A" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Drawer
+          drawerContent={(props) => <DrawerContent {...props} />}
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: "#1E3A8A",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            drawerActiveTintColor: "#1E3A8A",
+            drawerInactiveTintColor: "#555",
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="menu" size={size} color={color} />
+            ),
+          }}
+        >
+          <Drawer.Screen 
+            name="index" 
+            options={{ 
+              title: "Inicio",
+              drawerIcon: ({ color, size }) => (
+                <Ionicons name="home-outline" size={size} color={color} />
+              ),
+            }} 
+          />
+          {/* Ocultar las pantallas de login y registro del drawer */}
+          <Drawer.Screen 
+            name="login/index" 
+            options={{ 
+              drawerItemStyle: { display: 'none' },
+              href: null 
+            }} 
+          />
+          <Drawer.Screen 
+            name="register/index" 
+            options={{ 
+              drawerItemStyle: { display: 'none' },
+              href: null 
+            }} 
+          />
+        </Drawer>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
